@@ -184,6 +184,149 @@ pedir_target() {
     echo ""
 }
 
+# ─── PASO 2.5: Verificar conectividad con el target ──────────
+verificar_conectividad() {
+    log_section "PASO 2.5 — Verificación de Conectividad"
+
+    MY_IP=$(ip -4 addr show "$IFACE" 2>/dev/null | grep -oP '(?<=inet )\d+\.\d+\.\d+\.\d+' | head -1)
+    MY_NET=$(echo "$MY_IP" | cut -d. -f1-3)
+    TARGET_NET=$(echo "$TARGET" | cut -d. -f1-3)
+
+    echo -e "  ${WHITE}Tu IP:       ${CYAN}$MY_IP${NC}"
+    echo -e "  ${WHITE}Target IP:   ${CYAN}$TARGET${NC}"
+    echo ""
+
+    # ── Verificar si están en la misma red ──
+    if [ "$MY_NET" = "$TARGET_NET" ]; then
+        log_success "Misma red local detectada ($MY_NET.x) — conectividad óptima ✓"
+        MISMA_RED=true
+    else
+        log_warn "Redes diferentes — tu red: $MY_NET.x | target: $TARGET_NET.x"
+        MISMA_RED=false
+    fi
+
+    echo ""
+
+    # ── Ping test ──
+    log_info "Probando ping a $TARGET..."
+    if ping -c 3 -W 2 "$TARGET" &>/dev/null; then
+        RTT=$(ping -c 3 -W 2 "$TARGET" 2>/dev/null | tail -1 | grep -oP 'avg = \K[0-9.]+' || \
+              ping -c 3 -W 2 "$TARGET" 2>/dev/null | tail -1 | awk -F'/' '{print $5}')
+        log_success "Ping OK — latencia promedio: ${RTT:-?} ms"
+        PING_OK=true
+    else
+        log_error "Sin respuesta al ping — el target puede estar bloqueando ICMP o no hay ruta"
+        PING_OK=false
+    fi
+
+    echo ""
+
+    # ── Traceroute rápido ──
+    log_info "Trazando ruta hacia $TARGET..."
+    HOPS=$(traceroute -m 10 -w 1 "$TARGET" 2>/dev/null | tail -n +2 | wc -l)
+    LAST_HOP=$(traceroute -m 10 -w 1 "$TARGET" 2>/dev/null | tail -1)
+
+    if echo "$LAST_HOP" | grep -q "$TARGET"; then
+        log_success "Ruta completa — $HOPS saltos hasta el target"
+    else
+        log_warn "Ruta incompleta — posible firewall en el camino"
+        echo -e "  ${DIM}Último salto visible: $LAST_HOP${NC}"
+    fi
+
+    echo ""
+
+    # ── Test de puertos clave con nc ──
+    log_info "Comprobando puertos AD clave (conexión rápida)..."
+    echo ""
+    PUERTOS_CLAVE=(445 389 88 5985 3389 135)
+    NOMBRES_CLAVE=("SMB" "LDAP" "Kerberos" "WinRM" "RDP" "RPC")
+    ALGUNO_ABIERTO=false
+
+    for i in "${!PUERTOS_CLAVE[@]}"; do
+        p="${PUERTOS_CLAVE[$i]}"
+        n="${NOMBRES_CLAVE[$i]}"
+        if nc -z -w 2 "$TARGET" "$p" &>/dev/null; then
+            log_warn "  Puerto $p ($n) — ALCANZABLE ⚡"
+            ALGUNO_ABIERTO=true
+        else
+            echo -e "  ${DIM}  Puerto $p ($n) — no alcanzable${NC}"
+        fi
+    done
+
+    echo ""
+
+    # ── Diagnóstico y recomendación ──
+    echo -e "${BOLD}${BLUE}══════════════════════════════════════════${NC}"
+    echo -e "${BOLD}${WHITE}  📋 Diagnóstico${NC}"
+    echo -e "${BOLD}${BLUE}══════════════════════════════════════════${NC}"
+    echo ""
+
+    if [ "$ALGUNO_ABIERTO" = true ]; then
+        log_success "¡Conectividad confirmada! Puedes continuar con la auditoría."
+        echo ""
+        echo -e "  ${GREEN}✓ El script puede hacer el escaneo completo${NC}"
+        echo -e "  ${GREEN}✓ Los módulos de ataque van a funcionar${NC}"
+        if [ "$MISMA_RED" = false ]; then
+            echo -e "  ${YELLOW}⚠ No estás en la misma red — Responder NO va a funcionar${NC}"
+            echo -e "  ${DIM}    Para usar Responder necesitas estar en la red local del server${NC}"
+        else
+            echo -e "  ${GREEN}✓ Estás en la misma red — todos los módulos disponibles${NC}"
+        fi
+
+    elif [ "$PING_OK" = true ]; then
+        log_warn "Hay ruta al target pero los puertos AD están bloqueados."
+        echo ""
+        echo -e "  ${YELLOW}Posibles causas:${NC}"
+        echo -e "  ${DIM}  → Firewall de Windows bloqueando los puertos${NC}"
+        echo -e "  ${DIM}  → El server no tiene los servicios AD activos${NC}"
+        echo -e "  ${DIM}  → Reglas de red entre tú y el server${NC}"
+        echo ""
+        echo -e "  ${CYAN}Solución:${NC} Pídele a tu compañero que ejecute en su server:"
+        echo -e "  ${WHITE}  netsh advfirewall set allprofiles state off${NC}"
+        echo -e "  ${DIM}  (desactiva el firewall de Windows temporalmente para el lab)${NC}"
+
+    else
+        log_error "Sin conectividad con $TARGET"
+        echo ""
+        echo -e "  ${RED}No hay ruta hacia el servidor. Causas más comunes:${NC}"
+        echo ""
+        echo -e "  ${YELLOW}1. Estás en redes distintas sin VPN${NC}"
+        echo -e "  ${DIM}     Tu Kali ($MY_IP) y el server ($TARGET) están en redes separadas."
+        echo -e "     El router del server bloquea todo el tráfico externo.${NC}"
+        echo ""
+        echo -e "  ${YELLOW}2. Solución A — Tailscale (más fácil, 5 min):${NC}"
+        echo -e "  ${DIM}     En el SERVER (Windows):${NC}"
+        echo -e "  ${WHITE}       Descargar: https://tailscale.com/download/windows${NC}"
+        echo -e "  ${DIM}     En tu KALI:${NC}"
+        echo -e "  ${WHITE}       curl -fsSL https://tailscale.com/install.sh | sh${NC}"
+        echo -e "  ${WHITE}       sudo tailscale up${NC}"
+        echo -e "  ${DIM}     Ambos se agregan a la misma cuenta → quedan en la misma red virtual${NC}"
+        echo -e "  ${DIM}     Usa la IP que te da Tailscale (100.x.x.x) como target${NC}"
+        echo ""
+        echo -e "  ${YELLOW}3. Solución B — Wireguard VPN:${NC}"
+        echo -e "  ${DIM}     Tu compañero instala Wireguard en el server y te pasa el${NC}"
+        echo -e "  ${DIM}     archivo .conf — te conectas con: sudo wg-quick up archivo.conf${NC}"
+        echo ""
+        echo -e "  ${YELLOW}4. Solución C — Misma red física:${NC}"
+        echo -e "  ${DIM}     Conectar tu Kali al mismo router/switch que el server${NC}"
+        echo ""
+        echo -e "  ${CYAN}Una vez conectado por VPN o red local, vuelve a correr el script${NC}"
+        echo -e "  ${CYAN}y la verificación pasará automáticamente.${NC}"
+        echo ""
+
+        read -p "$(echo -e ${YELLOW}"  [?] ¿Continuar de todas formas? (s/N): "${NC})" FORZAR
+        if [[ ! "${FORZAR,,}" =~ ^s ]]; then
+            echo ""
+            log_info "Saliendo. Conéctate a la red del server y vuelve a intentarlo."
+            exit 0
+        fi
+        log_warn "Continuando sin conectividad verificada — los resultados pueden estar vacíos"
+    fi
+
+    echo ""
+    echo "CONECTIVIDAD: ping=$PING_OK misma_red=$MISMA_RED algún_puerto=$ALGUNO_ABIERTO" >> "$REPORT_FILE"
+}
+
 # ─── PASO 3: Escaneo de puertos ──────────────────────────────
 modulo_portscan() {
     log_section "PASO 3 — Escaneo de Puertos (NMAP)"
@@ -907,5 +1050,6 @@ menu() {
 banner
 seleccionar_interfaz
 pedir_target
+verificar_conectividad
 modulo_portscan
 menu
